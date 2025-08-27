@@ -4,11 +4,17 @@ import dotenv from "dotenv";
 import {
   createToken,
   createRefreshToken,
+  generateCode,
 } from '../../utils'
 import { db } from "../../config/firebase";
 import { User } from "../../schema/user";
 import { randomUUID } from "crypto";
+import { Request, Response } from "express";
+import jwt from "jsonwebtoken";
 
+import 'dotenv/config'
+
+const JWT_SECRET = process.env.JWT_SECRET;
 dotenv.config();
 const apiSecret = process.env.VONAGE_API_SECRET
 const apiKey = process.env.NEXTMO_API_KEY
@@ -18,55 +24,112 @@ const vonage = new Vonage({
 });
 //Dùng sdk nonage gửi sms
 const requestCreateCode = async (phoneNumber: string) => {
-
   try {
-    const res = await vonage?.verify?.start({
-      number: phoneNumber,
-      brand: "App Test",
-      workflowId: VerifyWorkflows?.SMS_SMS,
-      codeLength: 6,
-    })
-    if (!res || res.status !== "0") {
-      // Vonage trả về lỗi
-      throw new Error(`Gửi mã SMS thất bại`);
-    }
-    // trả req id về client
-    console.log("res", res);
-    return res?.request_id
+    const code = generateCode();
+    const expiresAt = Date.now() + 5 * 60 * 1000;
+
+    // Lưu vào Firestore: key = số điện thoại
+    await db.collection("AccessCodes").doc(phoneNumber).set({
+      code,
+      expiresAt,
+      createdAt: Date.now(),
+    });
+
+    // Gửi SMS qua Vonage (dùng SMS API, không dùng verify)
+    await vonage.sms.send({
+      to: phoneNumber,
+      from: "App Test",
+      text: `Mã xác thực của bạn là: ${code}. Có hiệu lực trong 5 phút.`,
+    });
+
+    return { success: true, message: "Đã gửi mã xác thực qua SMS" };
   } catch (error) {
     console.error("Gửi mã SMS thất bại:", error);
     throw new Error("Không thể gửi mã SMS");
   }
 };
 
-const validateAccessCode = async (
-  requestId: string,
-  code: string,
-  phoneNumber: string,
 
-) => {
+const validateAccessCode = async (code: string, phoneNumber: string) => {
   try {
-    // xác minh otp => kiểm tra sdt có trong db chưa?
-    // nếu có thì gửi token + refresh token, thông tin user về
-    // nếu không thì tạo r gửi tt trên về
-    //await vonage.verify.check(requestId, code);
+    const docRef = db.collection("AccessCodes").doc(phoneNumber);
+    const doc = await docRef.get();
 
-    const userRef = db.collection("Users").doc(phoneNumber);
-    let user: User;
-    const userDoc = await userRef.get();
-
-    if (!userDoc?.exists) {
-      user = { id: randomUUID(), phone: phoneNumber, name: "", role: "teacher", email: "", status: "active" };
-      await userRef.set(user);
-    } else {
-      user = userDoc?.data() as User;
+    if (!doc.exists) {
+      throw new Error("Không tìm thấy mã cho số điện thoại này");
     }
-    const accessToken = createToken(user);
-    const refreshToken = createRefreshToken(user);
-    return { user: { ...user }, token: accessToken, refreshToken: refreshToken };
-  } catch (err) {
-    console.error("Check OTP thất bại:", err);
+
+    const { code: savedCode, expiresAt } = doc.data() as { code: string; expiresAt: number };
+
+    if (Date.now() > expiresAt) {
+      throw new Error("Mã đã hết hạn");
+    }
+
+    if (code !== savedCode) {
+      throw new Error("Mã không đúng");
+    }
+
+    // Xóa code sau khi dùng
+    await docRef.delete();
+
+    // Tìm hoặc tạo user
+    const result = await db.collection("Users").where("phone", "==", phoneNumber).limit(1).get();
+    let user: User;
+    if (!result.empty) {
+      user = result.docs[0].data() as User;
+    } else {
+      user = {
+        id: randomUUID(),
+        phone: phoneNumber,
+        name: "",
+        role: "teacher",
+        email: "",
+        status: "active",
+      };
+      await db.collection("Users").doc(user.id as string).set(user);
+    }
+
+    return {
+      user,
+      token: createToken(user),
+      refreshToken: createRefreshToken(user),
+    };
+  } catch (error) {
+    console.error("Xác minh mã OTP thất bại:", error);
     return false;
   }
 };
-export { requestCreateCode, validateAccessCode };
+
+
+
+const verifyStudentEmail = async (req: Request, res: Response) => {
+  try {
+    const { token } = req.params;
+
+    if (!token) return res.status(400).json({ error: "Thiếu token." });
+
+    let userData: any;
+    try {
+      userData = jwt.verify(token, JWT_SECRET as string);
+    } catch (err) {
+      return res.status(400).json({ error: "Token không hợp lệ hoặc đã hết hạn." });
+    }
+
+    const userRef = db.collection("Users").doc(userData.id);
+
+    // cập nhật trạng thái pending -> active
+    await userRef.update({ status: "active" });
+
+    const updatedUser = (await userRef.get()).data();
+
+    return res.json({
+      success: true,
+      message: "Xác thực email thành công.",
+      user: updatedUser,
+    });
+  } catch (err) {
+    console.error("Lỗi verify email:", err);
+    return res.status(500).json({ error: "Lỗi server." });
+  }
+};
+export { requestCreateCode, validateAccessCode, verifyStudentEmail };

@@ -5,6 +5,10 @@ const JWT_SECRET = process.env.JWT_SECRET;
 const JWT_SECRET_REFRESH_TOKEN = process.env.JWT_SECRET_REFRESH_TOKEN;
 
 //sinh mã 6 số ngẫu nhiên
+const generateCode = () => {
+  const min = 100000;
+  return Math.floor(min + Math.random() * (min * 9)).toString();
+};
 
 
 //hàm tạo token
@@ -22,7 +26,7 @@ const createRefreshToken = (user: User) => {
 };
 
 export {
-
+  generateCode,
   createToken,
   createRefreshToken,
 };

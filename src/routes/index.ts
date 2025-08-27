@@ -2,7 +2,8 @@ import { Router } from "express";
 
 import { requestCreateCode, validateAccessCode } from "../controllers";
 import { verifyToken } from "../middlewares/jwt";
-import { addStudent } from "../controllers/student";
+import { addStudent, updateUserInfo } from "../controllers/user";
+import { verifyStudentEmail } from "../controllers/auth";
 
 const router = Router();
 
@@ -24,8 +25,8 @@ router.use("/auth", Router()
     })
     .post("/verify-code", async (req, res) => {
         try {
-            const { requestId, code, phoneNumber } = req.body;
-            const result = await validateAccessCode(requestId, code, phoneNumber);
+            const { code, phoneNumber } = req.body;
+            const result = await validateAccessCode(code, phoneNumber);
             if (!result) {
                 return res.status(400).json({ success: false, error: "Mã OTP không hợp lệ" });
             }
@@ -46,6 +47,9 @@ router.use("/auth", Router()
 router.use("/users", Router()
     .post("/addStudent", verifyToken(), addStudent
     )
+    .post("/verifyEmail/:token", verifyStudentEmail)
+    .put("/editStudent", verifyToken(), updateUserInfo)
+    .put("/editProfile", verifyToken(), updateUserInfo)
 )
 
 
