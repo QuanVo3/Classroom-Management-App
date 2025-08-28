@@ -26,23 +26,23 @@ const vonage = new Vonage({
 // Gửi mã OTP qua SMS và lưu vào Firestore
 const requestCreateCode = async (phoneNumber: string, role: "student" | "teacher" = "student") => {
   try {
-    // const code = generateCode();
-    // const expiresAt = Date.now() + 5 * 60 * 1000; // 5 phút
+    const code = generateCode();
+    const expiresAt = Date.now() + 5 * 60 * 1000; // 5 phút
 
-    // // Lưu vào Firestore
-    // await db.collection("AccessCodes").doc(phoneNumber).set({
-    //   code,
-    //   expiresAt,
-    //   createdAt: Date.now(),
-    //   role, // lưu role để khi validate biết tạo user loại gì
-    // });
+    // Lưu vào Firestore
+    await db.collection("AccessCodes").doc(phoneNumber).set({
+      code,
+      expiresAt,
+      createdAt: Date.now(),
+      role, // lưu role để khi validate biết tạo user loại gì
+    });
 
-    // // Gửi SMS qua Vonage
-    // await vonage.sms.send({
-    //   to: phoneNumber,
-    //   from: "App Test",
-    //   text: `Mã xác thực của bạn là: ${code}. Có hiệu lực trong 5 phút.`,
-    // });
+    // Gửi SMS qua Vonage
+    await vonage.sms.send({
+      to: phoneNumber,
+      from: "App Test",
+      text: `Mã xác thực của bạn là: ${code}. Có hiệu lực trong 5 phút.`,
+    });
 
     return { success: true, message: "Đã gửi mã xác thực qua SMS" };
   } catch (error) {
@@ -54,29 +54,29 @@ const requestCreateCode = async (phoneNumber: string, role: "student" | "teacher
 // Xác minh OTP và trả token
 const validateAccessCode = async (code: string, phoneNumber: string) => {
   try {
-    // const docRef = db.collection("AccessCodes").doc(phoneNumber);
-    // const doc = await docRef.get();
+    const docRef = db.collection("AccessCodes").doc(phoneNumber);
+    const doc = await docRef.get();
 
-    // if (!doc.exists) {
-    //   throw new Error("Không tìm thấy mã cho số điện thoại này");
-    // }
+    if (!doc.exists) {
+      throw new Error("Không tìm thấy mã cho số điện thoại này");
+    }
 
-    // const { code: savedCode, expiresAt, role } = doc.data() as {
-    //   code: string;
-    //   expiresAt: number;
-    //   role: "student" | "teacher";
-    // };
+    const { code: savedCode, expiresAt, role } = doc.data() as {
+      code: string;
+      expiresAt: number;
+      role: "student" | "teacher";
+    };
 
-    // if (Date.now() > expiresAt) {
-    //   throw new Error("Mã đã hết hạn");
-    // }
+    if (Date.now() > expiresAt) {
+      throw new Error("Mã đã hết hạn");
+    }
 
-    // if (code !== savedCode) {
-    //   throw new Error("Mã không đúng");
-    // }
+    if (code !== savedCode) {
+      throw new Error("Mã không đúng");
+    }
 
-    // // Xóa code sau khi dùng
-    // await docRef.delete();
+    // Xóa code sau khi dùng
+    await docRef.delete();
 
     // Tìm hoặc tạo user
     const result = await db
