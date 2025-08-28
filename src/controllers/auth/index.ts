@@ -25,22 +25,22 @@ const vonage = new Vonage({
 //Dùng sdk nonage gửi sms
 const requestCreateCode = async (phoneNumber: string) => {
   try {
-    const code = generateCode();
-    const expiresAt = Date.now() + 5 * 60 * 1000;
+    // const code = generateCode();
+    // const expiresAt = Date.now() + 5 * 60 * 1000;
 
-    // Lưu vào Firestore: key = số điện thoại
-    await db.collection("AccessCodes").doc(phoneNumber).set({
-      code,
-      expiresAt,
-      createdAt: Date.now(),
-    });
+    // // Lưu vào Firestore: key = số điện thoại
+    // await db.collection("AccessCodes").doc(phoneNumber).set({
+    //   code,
+    //   expiresAt,
+    //   createdAt: Date.now(),
+    // });
 
-    // Gửi SMS qua Vonage (dùng SMS API, không dùng verify)
-    await vonage.sms.send({
-      to: phoneNumber,
-      from: "App Test",
-      text: `Mã xác thực của bạn là: ${code}. Có hiệu lực trong 5 phút.`,
-    });
+    // // Gửi SMS qua Vonage (dùng SMS API, không dùng verify)
+    // await vonage.sms.send({
+    //   to: phoneNumber,
+    //   from: "App Test",
+    //   text: `Mã xác thực của bạn là: ${code}. Có hiệu lực trong 5 phút.`,
+    // });
 
     return { success: true, message: "Đã gửi mã xác thực qua SMS" };
   } catch (error) {
@@ -52,25 +52,25 @@ const requestCreateCode = async (phoneNumber: string) => {
 
 const validateAccessCode = async (code: string, phoneNumber: string) => {
   try {
-    const docRef = db.collection("AccessCodes").doc(phoneNumber);
-    const doc = await docRef.get();
+    // const docRef = db.collection("AccessCodes").doc(phoneNumber);
+    // const doc = await docRef.get();
 
-    if (!doc.exists) {
-      throw new Error("Không tìm thấy mã cho số điện thoại này");
-    }
+    // if (!doc.exists) {
+    //   throw new Error("Không tìm thấy mã cho số điện thoại này");
+    // }
 
-    const { code: savedCode, expiresAt } = doc.data() as { code: string; expiresAt: number };
+    // const { code: savedCode, expiresAt } = doc.data() as { code: string; expiresAt: number };
 
-    if (Date.now() > expiresAt) {
-      throw new Error("Mã đã hết hạn");
-    }
+    // if (Date.now() > expiresAt) {
+    //   throw new Error("Mã đã hết hạn");
+    // }
 
-    if (code !== savedCode) {
-      throw new Error("Mã không đúng");
-    }
+    // if (code !== savedCode) {
+    //   throw new Error("Mã không đúng");
+    // }
 
-    // Xóa code sau khi dùng
-    await docRef.delete();
+    // // Xóa code sau khi dùng
+    // await docRef.delete();
 
     // Tìm hoặc tạo user
     const result = await db.collection("Users").where("phone", "==", phoneNumber).limit(1).get();
