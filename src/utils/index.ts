@@ -20,7 +20,7 @@ const createToken = (user: User) => {
 
 //Hàm tạo refresh token
 const createRefreshToken = (user: User) => {
-  return jwt.sign({ id: user.id, phone: user?.phone, role: user?.role }, JWT_SECRET_REFRESH_TOKEN as string, {
+  return jwt.sign({ id: user.id }, JWT_SECRET_REFRESH_TOKEN as string, {
     expiresIn: "7d",
   });
 };

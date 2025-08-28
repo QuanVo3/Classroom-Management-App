@@ -142,16 +142,41 @@ const getUserLessons = async (req: Request, res: Response) => {
                 .where("studentId", "==", currentUser.id)
                 .get();
 
-            const assignments = assignmentsSnap.docs.map(doc => doc.data());
+            const assignments = assignmentsSnap.docs.map((doc) => doc.data());
 
             const lessonPromises = assignments.map(async (assignment) => {
                 const lessonDoc = await db
                     .collection("Lessons")
                     .doc(assignment.lessonId)
                     .get();
+
+                let lessonData: any = null;
+                let teacherName: string | null = null;
+                let teacherEmail: string | null = null;
+
+                if (lessonDoc.exists) {
+                    lessonData = lessonDoc.data();
+
+                    // 🔹 Lấy thông tin giáo viên
+                    if (lessonData?.createdBy) {
+                        const teacherDoc = await db
+                            .collection("Users")
+                            .doc(lessonData.createdBy)
+                            .get();
+
+                        if (teacherDoc.exists) {
+                            const teacher = teacherDoc.data() as { name?: string; email?: string };
+                            teacherName = teacher.name || null;
+                            teacherEmail = teacher.email || null;
+                        }
+                    }
+                }
+
                 return {
                     ...assignment,
-                    lesson: lessonDoc.exists ? lessonDoc.data() : null,
+                    lesson: lessonData,
+                    teacherName,
+                    teacherEmail,
                 };
             });
 
@@ -165,14 +190,16 @@ const getUserLessons = async (req: Request, res: Response) => {
                 .where("createdBy", "==", currentUser.id)
                 .get();
 
-            const lessons = lessonsSnap.docs.map(doc => doc.data());
+            const lessons = lessonsSnap.docs.map((doc) => doc.data());
             return res.json({ success: true, lessons });
         }
 
         return res.status(403).json({ error: "Vai trò không hợp lệ." });
     } catch (error) {
         console.error("Lỗi khi lấy danh sách bài học:", error);
-        return res.status(500).json({ error: "Lỗi máy chủ. Vui lòng thử lại sau." });
+        return res
+            .status(500)
+            .json({ error: "Lỗi máy chủ. Vui lòng thử lại sau." });
     }
 };
 

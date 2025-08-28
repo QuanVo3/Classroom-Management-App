@@ -8,29 +8,75 @@ import { createToken } from "../../utils";
 
 import 'dotenv/config'
 const getAllStudents = async (req: Request, res: Response) => {
-    const user = (req as any).user;
+    const currentUser = (req as any).user;
 
-    if (user?.role !== "teacher") {
-        return res.status(403).json({ error: "Bạn không có quyền để thực hiện chức năng này." });
+    if (currentUser?.role !== "teacher") {
+        return res
+            .status(403)
+            .json({ error: "Bạn không có quyền để thực hiện chức năng này." });
     }
+
     try {
-        const result = await db
+        // Lấy tất cả học sinh
+        const studentsSnap = await db
             .collection("Users")
             .where("role", "==", "student")
             .get();
 
-        const students = result.docs.map(doc => ({
-            id: doc.id,
-            ...doc.data(),
-        }));
+        const students = await Promise.all(
+            studentsSnap.docs.map(async (doc) => {
+                const studentData = doc.data();
+                const studentId = doc.id;
+
+                // Lấy tất cả assignments của học sinh này
+                const assignmentsSnap = await db
+                    .collection("Assignments")
+                    .where("studentId", "==", studentId)
+                    .get();
+
+                const lessonsWithStatus = await Promise.all(
+                    assignmentsSnap.docs.map(async (assignDoc) => {
+                        const assignData = assignDoc.data();
+
+                        // Lấy thông tin bài học
+                        const lessonDoc = await db
+                            .collection("Lessons")
+                            .doc(assignData.lessonId)
+                            .get();
+
+                        return {
+                            lessonId: assignData.lessonId,
+                            title: lessonDoc.exists ? lessonDoc.data()?.title : null,
+                            status: assignData.status,
+                            assignedAt: assignData.assignedAt,
+                        };
+                    })
+                );
+
+                // Tính tiến độ nhanh (ví dụ cho UI progress bar)
+                const total = lessonsWithStatus.length;
+                const done = lessonsWithStatus.filter(
+                    (l) => l.status === "done"
+                ).length;
+
+                return {
+                    id: studentId,
+                    ...studentData,
+                    lessons: lessonsWithStatus,
+                    progress: { done, total },
+                };
+            })
+        );
 
         return res.json({ success: true, students });
     } catch (error) {
         console.error("Lỗi khi lấy danh sách học sinh:", error);
-        return res.status(500).json({ error: "Lỗi máy chủ. Vui lòng thử lại sau." });
+        return res
+            .status(500)
+            .json({ error: "Lỗi máy chủ. Vui lòng thử lại sau." });
     }
+};
 
-}
 const addStudent = async (req: Request, res: Response) => {
     const user = (req as any).user;
     const { name, phone, email } = req.body;
@@ -77,7 +123,7 @@ const addStudent = async (req: Request, res: Response) => {
 
 const updateUserInfo = async (req: Request, res: Response) => {
     const user = (req as any).user;
-    const {  data } = req.body;
+    const { data } = req.body;
     console.log('data', data);
     if (!data) {
         return res.status(400).json({ error: "Thiếu thông tin cần cập nhật." });

@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "type": "commonjs",
   "scripts": {
-    "dev": "nodemon --watch src --ext ts,json --exec ts-node src/app.ts",
+    "dev": "nodemon --watch src --ext ts,json --exec ts-node src/server.ts",
     "build": "tsc",
     "start": "node dist/app.js"
   },
@@ -16,9 +16,11 @@
     "firebase-admin": "^13.4.0",
     "jsonwebtoken": "^9.0.2",
     "nodemailer": "^7.0.5",
+    "socket.io": "^4.8.1",
     "twilio": "^5.8.0"
   },
   "devDependencies": {
+    "@types/cookie-parser": "^1.4.9",
     "@types/cors": "^2.8.19",
     "@types/node": "^24.3.0",
     "@types/nodemailer": "^7.0.1",

@@ -8,7 +8,7 @@ import {
     getStudentDetail,
     getAllStudents,
 } from "../controllers/user";
-import { verifyStudentEmail } from "../controllers/auth";
+import { refreshAccessToken, verifyStudentEmail } from "../controllers/auth";
 import {
     assignLesson,
 
@@ -16,6 +16,7 @@ import {
 
     getUserLessons,
     markLessonDone,
+    updateLesson,
 } from "../controllers/lesson";
 
 const router = Router();
@@ -51,6 +52,26 @@ router.use("/auth", Router()
             return res.status(400).json({ success: false, error: (error as Error).message });
         }
     })
+    .post("/refresh-token", async (req, res) => {
+        try {
+            const refreshToken = req.cookies.refreshToken;
+            console.log('asd', req.cookies);
+            const result = await refreshAccessToken(refreshToken);
+            if (!result) {
+                return res.status(400).json({
+                    success: false, error: "Refresh token không hợp lệ hoặc đã hết hạn"
+                });
+            }
+            res.cookie("refreshToken", result.refreshToken, {
+                httpOnly: true,
+                secure: true,
+                sameSite: "none"
+            });
+            return res.json({ user: result.user, token: result.token });
+        } catch (error) {
+            return res.status(400).json({ success: false, error: (error as Error).message });
+        }
+    })
 );
 
 // 👤 User routes
@@ -69,6 +90,7 @@ router.use("/lesson", Router()
     .post("/assignLesson", verifyToken(), assignLesson) // giáo viên giao bài
     .get("/myLessons", verifyToken(), getUserLessons) // học sinh xem bài
     .post("/markLessonDone", verifyToken(), markLessonDone) // học sinh đánh dấu hoàn thành
+    .put("/updateLesson", verifyToken(), updateLesson)
     .delete("/deleteLesson", verifyToken(), deleteLesson) // giáo viên xoá bài
 
 );
