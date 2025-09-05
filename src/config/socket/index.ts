@@ -23,7 +23,7 @@ export const setupSocket = (io: Server) => {
 
     io.on("connection", (socket) => {
         const user = socket.data.user;
-        console.log(`🔌 ${user.id} đã kết nối`);
+        console.log(`${user.id} đã kết nối`);
 
         socket.join(`user:${user.id}`);
 

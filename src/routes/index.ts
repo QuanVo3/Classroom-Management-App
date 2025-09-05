@@ -18,6 +18,7 @@ import {
     markLessonDone,
     updateLesson,
 } from "../controllers/lesson";
+import { getConversation } from "../controllers/chat";
 
 const router = Router();
 
@@ -55,7 +56,6 @@ router.use("/auth", Router()
     .post("/refresh-token", async (req, res) => {
         try {
             const refreshToken = req.cookies.refreshToken;
-            console.log('asd', req.cookies);
             const result = await refreshAccessToken(refreshToken);
             if (!result) {
                 return res.status(400).json({
@@ -94,5 +94,10 @@ router.use("/lesson", Router()
     .delete("/deleteLesson", verifyToken(), deleteLesson) // giáo viên xoá bài
 
 );
+
+router.use("/chat", Router()
+    .get("/messages", verifyToken(), getConversation) // lấy lịch sử tin nhắn
+);
+
 
 export default router;

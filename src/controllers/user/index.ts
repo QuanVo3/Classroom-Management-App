@@ -150,9 +150,9 @@ const updateUserInfo = async (req: Request, res: Response) => {
         }
 
         if (user.role === "teacher") {
-            if (!data?.id) {
-                return res.status(400).json({ error: "Thiếu ID người dùng cần cập nhật." });
-            }
+            // if (!data?.id) {
+            //     return res.status(400).json({ error: "Thiếu ID người dùng cần cập nhật." });
+            // }
 
             await db.collection("Users").doc(data?.id).update(data);
             const updatedUser = (await db.collection("Users").doc(data?.id).get()).data();
@@ -170,12 +170,7 @@ const updateUserInfo = async (req: Request, res: Response) => {
     }
 };
 const getStudentDetail = async (req: Request, res: Response) => {
-    const currentUser = (req as any).user;
     const { id } = req.params;
-
-    if (currentUser.role !== "teacher") {
-        return res.status(403).json({ error: "Bạn không có quyền truy cập thông tin học sinh." });
-    }
 
     if (!id) {
         return res.status(400).json({ error: "Thiếu ID học sinh." });
